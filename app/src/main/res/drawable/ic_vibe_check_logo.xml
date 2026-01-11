@@ -1,0 +1,29 @@
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    
+    <!-- Background Circle (Purple) -->
+    <path
+        android:pathData="M54,54m-45,0a45,45 0,1 1,90 0a45,45 0,1 1,-90 0"
+        android:fillColor="#6200EE"/>
+        
+    <!-- Checkmark (Yellow) -->
+    <path
+        android:pathData="M32,56 L46,70 L76,40"
+        android:strokeWidth="8"
+        android:fillColor="#00000000"
+        android:strokeColor="#FFDD00"
+        android:strokeLineCap="round"
+        android:strokeLineJoin="round"/>
+
+    <!-- Vibe Waves (Cyan) above checkmark -->
+    <path
+        android:pathData="M38,30 Q54,20 70,30"
+        android:strokeWidth="4"
+        android:fillColor="#00000000"
+        android:strokeColor="#03DAC5"
+        android:strokeLineCap="round"/>
+        
+</vector>
