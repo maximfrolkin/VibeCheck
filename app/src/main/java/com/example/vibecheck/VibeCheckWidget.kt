@@ -11,6 +11,7 @@ import androidx.glance.GlanceModifier
 import androidx.glance.GlanceTheme
 import androidx.glance.Image
 import androidx.glance.ImageProvider
+import androidx.glance.LocalContext
 import androidx.glance.action.ActionParameters
 import androidx.glance.action.actionParametersOf
 import androidx.glance.action.clickable
@@ -18,6 +19,7 @@ import androidx.glance.appwidget.GlanceAppWidget
 import androidx.glance.appwidget.GlanceAppWidgetReceiver
 import androidx.glance.appwidget.action.ActionCallback
 import androidx.glance.appwidget.action.actionRunCallback
+import androidx.glance.appwidget.lazy.LazyColumn
 import androidx.glance.appwidget.provideContent
 import androidx.glance.background
 import androidx.glance.currentState
@@ -37,6 +39,7 @@ import androidx.glance.text.Text
 import androidx.glance.text.TextStyle
 import androidx.work.OneTimeWorkRequestBuilder
 import androidx.work.WorkManager
+import kotlinx.coroutines.flow.first
 
 /**
  * Glance Widget Implementation
@@ -46,107 +49,133 @@ class VibeCheckWidget : GlanceAppWidget() {
     override val stateDefinition: GlanceStateDefinition<*> = PreferencesGlanceStateDefinition
 
     override suspend fun provideGlance(context: Context, id: GlanceId) {
+        val language = AppSettings.getLanguage(context).first()
+        val strings = Localization.getStrings(language)
+
         provideContent {
             val prefs = currentState<Preferences>()
-            val word = prefs[SlangPrefsKeys.WORD] ?: "Loading..."
+            val word = prefs[SlangPrefsKeys.WORD] ?: strings.loading
             val translation = prefs[SlangPrefsKeys.TRANSLATION] ?: ""
-            val contextText = prefs[SlangPrefsKeys.CONTEXT] ?: "Fetching slang..."
+            val contextText = prefs[SlangPrefsKeys.CONTEXT] ?: strings.fetching
             val trendReason = prefs[SlangPrefsKeys.TREND_REASON] ?: ""
             val trendScore = prefs[SlangPrefsKeys.TREND_SCORE] ?: 0
 
             GlanceTheme {
-                VibeWidgetContent(word, translation, contextText, trendReason, trendScore)
+                VibeWidgetContent(word, translation, contextText, trendReason, trendScore, strings)
             }
         }
     }
 
     @Composable
-    private fun VibeWidgetContent(word: String, translation: String, contextText: String, trendReason: String, trendScore: Int) {
+    private fun VibeWidgetContent(
+        word: String,
+        translation: String,
+        contextText: String,
+        trendReason: String,
+        trendScore: Int,
+        strings: Localization.UiStrings
+    ) {
         Column(
             modifier = GlanceModifier
                 .fillMaxSize()
-                .padding(16.dp)
+                .padding(12.dp)
                 .background(GlanceTheme.colors.surface),
             verticalAlignment = Alignment.Vertical.Top,
             horizontalAlignment = Alignment.Horizontal.Start
         ) {
-            Text(
-                text = word,
-                style = TextStyle(
-                    fontSize = 20.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = GlanceTheme.colors.onSurface
-                ),
-                maxLines = 1
-            )
-            if (translation.isNotEmpty()) {
-                Text(
-                    text = translation,
-                    style = TextStyle(
-                        fontSize = 14.sp,
-                        color = GlanceTheme.colors.secondary
-                    ),
-                    maxLines = 1
-                )
+            // Scrollable area for the text content
+            LazyColumn(
+                modifier = GlanceModifier.defaultWeight().fillMaxWidth()
+            ) {
+                item {
+                    Column(modifier = GlanceModifier.fillMaxWidth()) {
+                        Text(
+                            text = word,
+                            style = TextStyle(
+                                fontSize = 22.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = GlanceTheme.colors.onSurface
+                            )
+                        )
+                        if (translation.isNotEmpty()) {
+                            Text(
+                                text = translation,
+                                style = TextStyle(
+                                    fontSize = 16.sp,
+                                    fontWeight = FontWeight.Medium,
+                                    color = GlanceTheme.colors.secondary
+                                )
+                            )
+                        }
+                        Spacer(GlanceModifier.height(8.dp))
+                        
+                        Text(
+                            text = contextText,
+                            style = TextStyle(
+                                fontSize = 13.sp,
+                                color = GlanceTheme.colors.onSurfaceVariant
+                            )
+                        )
+                        
+                        if (trendReason.isNotEmpty()) {
+                            Spacer(GlanceModifier.height(6.dp))
+                            Text(
+                                text = "${strings.trendReasonLabel} $trendReason",
+                                style = TextStyle(
+                                    fontSize = 11.sp,
+                                    fontWeight = FontWeight.Medium,
+                                    color = GlanceTheme.colors.tertiary
+                                )
+                            )
+                        }
+                    }
+                }
             }
+
             Spacer(GlanceModifier.height(4.dp))
             
-            Text(
-                text = contextText,
-                style = TextStyle(
-                    fontSize = 12.sp,
-                    color = GlanceTheme.colors.onSurfaceVariant
-                ),
-                maxLines = 3
-            )
-            
-            if (trendReason.isNotEmpty()) {
-                Spacer(GlanceModifier.height(4.dp))
-                Text(
-                    text = "Why: $trendReason",
-                    style = TextStyle(
-                        fontSize = 10.sp,
-                        color = GlanceTheme.colors.tertiary
-                    ),
-                    maxLines = 3
-                )
-            }
-
-            Spacer(GlanceModifier.defaultWeight())
-            
+            // Bottom Row: Rating on the left, Icons on the right
             Row(
                 modifier = GlanceModifier.fillMaxWidth(),
-                verticalAlignment = Alignment.Vertical.CenterVertically,
-                horizontalAlignment = Alignment.Horizontal.End
+                verticalAlignment = Alignment.Vertical.CenterVertically
             ) {
+                // Trend Rating (Left Aligned)
                 if (trendScore > 0) {
                      Text(
-                         text = "🔥".repeat(trendScore.coerceIn(1, 10)),
-                         style = TextStyle(fontSize = 12.sp)
+                         text = "${strings.trendRatingLabel} $trendScore/10",
+                         style = TextStyle(
+                             fontSize = 12.sp,
+                             fontWeight = FontWeight.Bold,
+                             color = GlanceTheme.colors.error
+                         )
                      )
-                     Spacer(GlanceModifier.width(12.dp)) 
                 }
 
+                // Pushes icons to the far right
+                Spacer(GlanceModifier.defaultWeight())
+
+                // Icons (Right Aligned)
                 Image(
-                    provider = ImageProvider(android.R.drawable.ic_popup_sync),
-                    contentDescription = "Refresh",
+                    provider = ImageProvider(R.drawable.ic_refresh_stylish),
+                    contentDescription = strings.refreshButton,
                     modifier = GlanceModifier
                         .clickable(actionRunCallback<RefreshActionCallback>())
-                        .padding(8.dp)
+                        .padding(6.dp)
                 )
 
                 Image(
-                    provider = ImageProvider(android.R.drawable.ic_menu_share),
-                    contentDescription = "Share",
+                    provider = ImageProvider(R.drawable.ic_share_stylish),
+                    contentDescription = strings.shareChooserTitle,
                     modifier = GlanceModifier
                         .clickable(
                             actionRunCallback<ShareActionCallback>(
                                 actionParametersOf(
-                                    ActionParameters.Key<String>("text") to "Word of the Day: $word — $translation"
+                                    ActionParameters.Key<String>("text") to strings.shareText(word, translation),
+                                    ActionParameters.Key<String>("chooserTitle") to strings.shareChooserTitle
                                 )
                             )
                         )
-                        .padding(8.dp)
+                        .padding(6.dp)
                 )
             }
         }
@@ -156,12 +185,13 @@ class VibeCheckWidget : GlanceAppWidget() {
 class ShareActionCallback : ActionCallback {
     override suspend fun onAction(context: Context, glanceId: GlanceId, parameters: ActionParameters) {
         val shareText = parameters[ActionParameters.Key<String>("text")] ?: ""
+        val chooserTitle = parameters[ActionParameters.Key<String>("chooserTitle")] ?: "Share"
         val intent = Intent(Intent.ACTION_SEND).apply {
             type = "text/plain"
             putExtra(Intent.EXTRA_TEXT, shareText)
             addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
         }
-        context.startActivity(Intent.createChooser(intent, "Share via").addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
+        context.startActivity(Intent.createChooser(intent, chooserTitle).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
     }
 }
 

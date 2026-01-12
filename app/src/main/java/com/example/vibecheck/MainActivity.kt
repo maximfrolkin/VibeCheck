@@ -48,6 +48,7 @@ class MainActivity : ComponentActivity() {
                     val scope = rememberCoroutineScope()
                     
                     val targetLanguage by AppSettings.getLanguage(context).collectAsState(initial = "Russian")
+                    val strings = Localization.getStrings(targetLanguage)
 
                     Column(
                         modifier = Modifier.padding(16.dp),
@@ -55,22 +56,23 @@ class MainActivity : ComponentActivity() {
                         horizontalAlignment = Alignment.CenterHorizontally
                     ) {
                         Text("VibeCheck", style = MaterialTheme.typography.headlineLarge)
-                        Text("Твой ежедневный гид по сленгу", style = MaterialTheme.typography.bodyMedium)
+                        Text(strings.appSubtitle, style = MaterialTheme.typography.bodyMedium)
                         
                         Spacer(Modifier.height(32.dp))
                         
-                        Text("Язык перевода:", style = MaterialTheme.typography.titleMedium)
+                        Text(strings.selectLanguage, style = MaterialTheme.typography.titleMedium)
                         
                         val languages = listOf("Russian", "English", "Spanish", "German", "French")
-                        languages.forEach { language ->
+                        languages.forEach { languageKey ->
+                            val nativeName = strings.languageNames[languageKey] ?: languageKey
                             Row(
                                 modifier = Modifier
                                     .fillMaxWidth()
                                     .selectable(
-                                        selected = (language == targetLanguage),
+                                        selected = (languageKey == targetLanguage),
                                         onClick = {
                                             scope.launch {
-                                                AppSettings.setLanguage(context, language)
+                                                AppSettings.setLanguage(context, languageKey)
                                             }
                                         }
                                     )
@@ -78,11 +80,11 @@ class MainActivity : ComponentActivity() {
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
                                 RadioButton(
-                                    selected = (language == targetLanguage),
+                                    selected = (languageKey == targetLanguage),
                                     onClick = null
                                 )
                                 Text(
-                                    text = language,
+                                    text = nativeName,
                                     modifier = Modifier.padding(start = 16.dp)
                                 )
                             }
@@ -91,7 +93,7 @@ class MainActivity : ComponentActivity() {
                         Spacer(Modifier.height(32.dp))
                         
                         Button(onClick = { forceUpdateSlang() }) {
-                            Text("Обновить слово дня сейчас")
+                            Text(strings.refreshButton)
                         }
                     }
                 }
